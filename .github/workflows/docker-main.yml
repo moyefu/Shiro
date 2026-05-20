@@ -1,0 +1,115 @@
+name: Docker (Main Branch)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  repository_dispatch:
+    types: [trigger-workflow]
+
+permissions: write-all
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 9.x.x
+  HASH_FILE: path/to/hash/file.txt
+  TZ: Asia/Shanghai
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    if: ${{ github.event.head_commit.message != 'Update hash file' }}
+    outputs:
+      hash_content: ${{ steps.read_hash.outputs.hash_content }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Read HASH_FILE content
+        id: read_hash
+        run: |
+          content=$(cat ${{ env.HASH_FILE }}) || true
+          echo "hash_content=$content" >> "$GITHUB_OUTPUT"
+
+  check:
+    name: Check Should Rebuild
+    runs-on: ubuntu-latest
+    needs: prepare
+    outputs:
+      canceled: ${{ steps.use_content.outputs.canceled }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Use content from prev job and compare
+        id: use_content
+        env:
+          FILE_HASH: ${{ needs.prepare.outputs.hash_content }}
+        run: |
+          file_hash=$FILE_HASH
+          current_hash=$(git rev-parse --short HEAD)
+          echo "File Hash: $file_hash"
+          echo "Current Git Hash: $current_hash"
+          if [ "$file_hash" == "$current_hash" ]; then
+            echo "Hashes match. Stopping workflow."
+            echo "canceled=true" >> $GITHUB_OUTPUT
+          else
+            echo "Hashes do not match. Continuing workflow."
+          fi
+
+  build:
+    name: Build artifact
+    runs-on: ubuntu-latest
+    needs: check
+    if: ${{ needs.check.outputs.canceled != 'true' }}
+    outputs:
+      sha_short: ${{ steps.store.outputs.sha_short }}
+      branch: ${{ steps.store.outputs.branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Set up Image Name
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository }}
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
+
+      - name: Login to Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Store artifact commit version
+        shell: bash
+        id: store
+        run: |
+          sha_short=$(git rev-parse --short HEAD)
+          branch_name=$(git rev-parse --abbrev-ref HEAD)
+          echo "sha_short=$sha_short" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch_name" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker Image
+        run: |
+          docker build --build-arg TZ=Asia/Shanghai -t ${{ env.IMAGE_ID }}:${{ steps.store.outputs.sha_short }} .
+
+      - name: Push Docker Image to Github
+        run: |
+          docker push ${{ env.IMAGE_ID }}:${{ steps.store.outputs.sha_short }}
+
+      - name: Tag Docker Image as latest
+        run: |
+          docker tag ${{ env.IMAGE_ID }}:${{ steps.store.outputs.sha_short }} ${{ env.IMAGE_ID }}:latest
+
+      - name: Push Docker Image as latest
+        run: |
+          docker push ${{ env.IMAGE_ID }}:latest
