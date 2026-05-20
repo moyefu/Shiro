@@ -40,8 +40,7 @@ const getParentCommentId = (
   parentCommentId: CommentModel['parentCommentId'],
 ) => {
   if (!parentCommentId) return null
-  if (typeof parentCommentId === 'string') return parentCommentId
-  return null
+  return parentCommentId
 }
 
 const createViewComment = (
@@ -58,30 +57,87 @@ const sortChildrenDeep = (comment: CommentThreadViewItem) => {
   }
 }
 
+const buildChildrenTreeRecursive = (
+  rawChildren: CommentWithAnchor[],
+): CommentThreadViewItem[] => {
+  return rawChildren.map((child) => {
+    const viewComment = createViewComment(child)
+    // 递归处理嵌套的 children
+    const nestedChildren = (
+      child as unknown as { children?: CommentWithAnchor[] }
+    ).children
+    if (nestedChildren && nestedChildren.length > 0) {
+      viewComment.children = buildChildrenTreeRecursive(nestedChildren)
+    }
+    return viewComment
+  })
+}
+
 export const buildCommentTreeItem = (
   rootComment: CommentThreadItem | (CommentThreadViewItem & { ref?: string }),
 ): CommentThreadViewItem => {
   const rootView = createViewComment(rootComment)
-  const replyViews = (rootComment.replies ?? []).map((reply) =>
-    createViewComment(reply),
-  )
 
-  const commentMap = new Map<string, CommentThreadViewItem>([
-    [rootView.id, rootView],
-    ...replyViews.map((reply) => [reply.id, reply] as const),
-  ])
+  // 优先使用 replies 字段（扁平结构），如果没有则使用 children 字段（嵌套结构）
+  const rawReplies = rootComment.replies
+  const rawChildren = (
+    rootComment as unknown as { children?: CommentWithAnchor[] }
+  ).children
 
-  for (const reply of replyViews.sort(byCreatedAsc)) {
-    const parentId = getParentCommentId(reply.parentCommentId)
-    const parent = (parentId && commentMap.get(parentId)) || rootView
-    parent.children.push(reply)
+  if (rawReplies && rawReplies.length > 0) {
+    // 处理扁平的 replies 结构（使用 parentCommentId 或 parent 字段）
+    const replyViews = rawReplies.map((reply) => createViewComment(reply))
+
+    const commentMap = new Map<string, CommentThreadViewItem>([
+      [rootView.id, rootView],
+      ...replyViews.map((reply) => [reply.id, reply] as const),
+    ])
+
+    for (const reply of replyViews.sort(byCreatedAsc)) {
+      const rawParentId =
+        reply.parentCommentId ??
+        (reply as unknown as { parent?: string }).parent
+      const parentId = getParentCommentId(
+        rawParentId as CommentModel['parentCommentId'],
+      )
+      const parent = (parentId && commentMap.get(parentId)) || rootView
+      parent.children.push(reply)
+    }
+
+    sortChildrenDeep(rootView)
+
+    return {
+      ...rootView,
+      replies: dedupeRepliesById(rawReplies),
+      replyWindow: rootComment.replyWindow,
+    }
   }
 
-  sortChildrenDeep(rootView)
+  // 处理嵌套的 children 结构（直接使用后端的嵌套结构）
+  if (rawChildren && rawChildren.length > 0) {
+    rootView.children = buildChildrenTreeRecursive(rawChildren)
+    sortChildrenDeep(rootView)
+  }
+
+  // 收集所有子评论用于 replies 字段
+  const allReplies: CommentWithAnchor[] = []
+  const collectAllChildren = (comments: CommentWithAnchor[]) => {
+    for (const comment of comments) {
+      allReplies.push(comment)
+      const nested = (comment as unknown as { children?: CommentWithAnchor[] })
+        .children
+      if (nested && nested.length > 0) {
+        collectAllChildren(nested)
+      }
+    }
+  }
+  if (rawChildren) {
+    collectAllChildren(rawChildren)
+  }
 
   return {
     ...rootView,
-    replies: dedupeRepliesById(rootComment.replies ?? []),
+    replies: dedupeRepliesById(allReplies),
     replyWindow: rootComment.replyWindow,
   }
 }
@@ -94,8 +150,12 @@ export const flattenThreadComments = (
   const result: CommentWithAnchor[] = []
   for (const comment of comments) {
     result.push(comment)
-    if (comment.replies) {
-      result.push(...comment.replies)
+    // 优先使用 replies 字段，如果没有则使用 children 字段
+    const replies =
+      comment.replies ??
+      (comment as unknown as { children?: CommentWithAnchor[] }).children
+    if (replies) {
+      result.push(...replies)
     }
   }
   return dedupeRepliesById(result)
