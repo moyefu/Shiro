@@ -30,6 +30,9 @@ let nextConfig = {
     BUILD_TIME: new Date().toISOString(),
   },
 
+  // 允许局域网 IP 访问开发服务器
+  allowedDevOrigins: ['192.168.*.*', 'localhost', '127.0.0.1'],
+
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
   output: 'standalone',
@@ -58,8 +61,13 @@ let nextConfig = {
         protocol: 'https',
         hostname: '**',
       },
+      {
+        protocol: 'http',
+        hostname: '**',
+      },
     ],
     dangerouslyAllowSVG: true,
+    dangerouslyAllowLocalIP: true,
     contentSecurityPolicy:
       "default-src 'self'; script-src 'none'; sandbox; style-src 'unsafe-inline';",
   },
