@@ -1,8 +1,8 @@
-import type { NoteWrappedWithLikedAndTranslationPayload } from '@mx-space/api-client'
+import type { NoteWrappedWithLikedAndTranslationPayload, RequestError  } from '@mx-space/api-client'
 import { useQuery } from '@tanstack/react-query'
 import { atom } from 'jotai'
 import type { FC } from 'react'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { NoteMarkdown } from '~/app/[locale]/notes/[id]/NoteMarkdown'
 import {
@@ -15,7 +15,10 @@ import { AckRead } from '~/components/common/AckRead'
 import { ClientOnly } from '~/components/common/ClientOnly'
 import { Paper } from '~/components/layout/container/Paper'
 import { Loading } from '~/components/ui/loading'
+import { useModalStack } from '~/components/ui/modal'
 import { BottomToUpSmoothTransitionView } from '~/components/ui/transition'
+import { getErrorMessageFromRequestError } from '~/lib/request.shared'
+import { toast } from '~/lib/toast'
 import {
   CurrentNoteDataAtomProvider,
   CurrentNoteDataProvider,
@@ -31,9 +34,28 @@ interface NotePreviewProps {
   noteId: number
 }
 export const NotePreview: FC<NotePreviewProps> = (props) => {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     ...queries.note.byNid(props.noteId.toString()),
+    retry: false,
   })
+  const { dismissTop } = useModalStack()
+
+  useEffect(() => {
+    if (error) {
+      const requestError = error as RequestError
+      const fetchError = requestError?.raw as {
+        response?: { status?: number; _data?: { message?: string } }
+      }
+      const status = fetchError?.response?.status
+      if (status === 403) {
+        const message =
+          fetchError?.response?._data?.message ||
+          getErrorMessageFromRequestError(requestError)
+        toast.error(message || '不要偷看人家的小心思啦~')
+        dismissTop()
+      }
+    }
+  }, [error, dismissTop])
 
   const overrideAtom = useMemo(
     () => atom(null! as NoteWrappedWithLikedAndTranslationPayload),
