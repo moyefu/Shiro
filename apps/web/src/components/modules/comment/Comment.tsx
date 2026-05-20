@@ -179,7 +179,7 @@ const CommentRender: Component<{
           <div className="group flex w-full items-stretch gap-4">
             <div
               className={clsx(
-                'flex shrink-0 self-end md:relative md:w-9',
+                'flex shrink-0 self-end1 md:relative md:w-9',
                 'absolute top-2',
               )}
             >
@@ -253,20 +253,21 @@ const CommentRender: Component<{
               )}
             </div>
           </div>
-        </m.li>
 
-        <CommentBoxHolderProvider />
+          <CommentBoxHolderProvider />
+
+          {comment.replyWindow?.hasHidden && (
+            <LoadMoreRepliesButton comment={comment} />
+          )}
+          {comment.children.length > 0 && (
+            <ul className="my-2 ml-9 space-y-2">
+              {comment.children.map((child) => (
+                <Comment commentId={child.id} key={child.id} />
+              ))}
+            </ul>
+          )}
+        </m.li>
       </CommentHolderContext>
-      {comment.replyWindow?.hasHidden && (
-        <LoadMoreRepliesButton comment={comment} />
-      )}
-      {comment.children.length > 0 && (
-        <ul className="my-2 space-y-2">
-          {comment.children.map((child) => (
-            <Comment className="ml-9" commentId={child.id} key={child.id} />
-          ))}
-        </ul>
-      )}
     </>
   )
 }
