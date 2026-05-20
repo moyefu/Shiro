@@ -16,6 +16,26 @@ export const fetchAggregationData = async () => {
   await attachServerFetch()
   const queryClient = getQueryClient()
   const fetcher = async () => {
+    // 先获取版本号（不影响主请求）
+    let version = ''
+    try {
+      const versionRes = await $fetch<
+        AggregateRoot & {
+          theme: string
+        }
+      >(apiClient.aggregate.proxy.toString(true), {
+        params: {
+          theme: 'shiro_version',
+          timeStamp: new Date(),
+        },
+      })
+      version = versionRes.theme || ''
+      console.log('shiro_version', version)
+    } catch (e) {
+      // 版本接口不存在或出错，忽略
+      console.log('shiro_version:error', e)
+    }
+
     const data = (await $fetch<
       AggregateRoot & {
         theme: AppThemeConfig
@@ -23,6 +43,7 @@ export const fetchAggregationData = async () => {
     >(apiClient.aggregate.proxy.toString(true), {
       params: {
         theme: 'shiro',
+        ...(version && { now_version: version }),
       },
     }).then(simpleCamelcaseKeys)) as AggregateRoot & {
       theme: AppThemeConfig
@@ -37,7 +58,7 @@ export const fetchAggregationData = async () => {
   }
 
   return queryClient.fetchQuery({
-    queryKey: ['aggregate', 'shiro'],
+    queryKey: ['aggregate', 'shiro', 'realtime'],
     queryFn: fetcher,
     staleTime: cacheTime,
     gcTime: cacheTime,
