@@ -143,6 +143,10 @@ const List = () => {
     const pages = getPrevData()?.pages
     const count = pages?.reduce((acc, cur) => acc + cur.length, 0)
 
+    // 检查是否有 li 元素需要动画
+    const liElements = scope.current?.querySelectorAll('li')
+    if (!liElements || liElements.length === 0) return
+
     animate(
       'li',
       {
@@ -157,9 +161,9 @@ const List = () => {
         }),
       },
     )
-  }, [data])
+  }, [data, animate, scope])
 
-  if (isLoading) <Loading useDefaultLoadingText />
+  if (isLoading) return <Loading useDefaultLoadingText />
 
   return (
     <ul ref={scope}>
