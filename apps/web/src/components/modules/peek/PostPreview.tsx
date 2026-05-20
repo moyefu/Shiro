@@ -40,7 +40,7 @@ export const PostPreview: FC<PostPreviewProps> = (props) => {
   return (
     <CurrentPostDataAtomProvider overrideAtom={overrideAtom}>
       <CurrentPostDataProvider data={postData} />
-      {!!postData.id && <AckRead id={postData.id} type="post" />}
+      {!!postData.id && <AckRead id={postData.id} type="post" preview />}
       <BottomToUpSmoothTransitionView>
         <Paper>
           <article className={clsx('relative w-full min-w-0', 'prose')}>

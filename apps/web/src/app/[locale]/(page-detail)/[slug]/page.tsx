@@ -1,3 +1,4 @@
+import { AckRead } from '~/components/common/AckRead'
 import { PageActionAside } from '~/components/modules/page/PageActionAside'
 import { ArticleRightAside } from '~/components/modules/shared/ArticleRightAside'
 import { ReadIndicatorForMobile } from '~/components/modules/shared/ReadIndicator'
@@ -23,6 +24,7 @@ export default async function PageDetail({
 
   return (
     <WrappedElementProvider eoaDetect>
+      <AckRead id={data.id} type="page" />
       <ReadIndicatorForMobile />
       <FocusReadingEffect />
       <MarkdownImageRecordProviderInternal>

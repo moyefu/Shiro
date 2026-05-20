@@ -68,7 +68,7 @@ export const NotePreview: FC<NotePreviewProps> = (props) => {
   return (
     <CurrentNoteDataAtomProvider overrideAtom={overrideAtom}>
       <CurrentNoteDataProvider data={noteData} />
-      {!!note.id && <AckRead id={note.id} type="note" />}
+      {!!note.id && <AckRead id={note.id} type="note" preview />}
       <BottomToUpSmoothTransitionView>
         <Paper>
           <NoteHeadCover image={note.meta?.cover} />
