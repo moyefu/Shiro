@@ -14,6 +14,7 @@ export const BackgroundImageProvider = () => {
   const [scrollBlur, setScrollBlur] = useState(0)
   const [scrollOpacity, setScrollOpacity] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [fadeInProgress, setFadeInProgress] = useState(0)
 
   // 从配置读取基础参数，提供默认值
   const baseBlur = bgConfig?.blur ?? 5
@@ -25,23 +26,29 @@ export const BackgroundImageProvider = () => {
 
     setIsAnimating(true)
     const duration = 1200 // 动画持续时间 1.2 秒
+    const fadeInDuration = 100 // 淡入动画持续时间
     const startTime = Date.now()
 
     const animate = () => {
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / duration, 1)
+      const fadeInProgressRaw = Math.min(elapsed / fadeInDuration, 1)
 
       // 使用 easeOutCubic 缓动函数
       const easeProgress = 1 - Math.pow(1 - progress, 3)
+      // 淡入使用 easeOutQuad 更柔和
+      const fadeEaseProgress = 1 - Math.pow(1 - fadeInProgressRaw, 2)
 
       // 根据动画进度设置模糊度和透明度
       setScrollBlur(baseBlur * easeProgress)
       setScrollOpacity(baseOpacity * easeProgress)
+      setFadeInProgress(fadeEaseProgress)
 
       if (progress < 1) {
         requestAnimationFrame(animate)
       } else {
         setIsAnimating(false)
+        setFadeInProgress(1)
       }
     }
 
@@ -96,7 +103,7 @@ export const BackgroundImageProvider = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [isClient, imageLoaded, isAnimating, baseBlur, baseOpacity])
 
-  if (!isClient || !currentBg || !imageLoaded) return null
+  if (!isClient || !currentBg) return null
 
   return (
     <style
@@ -114,13 +121,13 @@ export const BackgroundImageProvider = () => {
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            opacity: ${scrollOpacity};
+            opacity: ${scrollOpacity * fadeInProgress};
             filter: blur(${scrollBlur}px);
             z-index: -2;
             pointer-events: none;
             will-change: transform, opacity, filter;
-            transform: translateZ(0);
-            transition: ${isAnimating ? 'none' : 'opacity 0.2s ease-out, filter 0.2s ease-out'};
+            transform: translateZ(0) scale(${1 + (1 - fadeInProgress) * 0.05});
+            transition: ${isAnimating ? 'none' : 'opacity 0.2s ease-out, filter 0.2s ease-out, transform 0.2s ease-out'};
           }
           
           /* 确保容器有相对定位 */
@@ -150,9 +157,9 @@ export const BackgroundImageProvider = () => {
             height: 100vh;
             background: linear-gradient(
               180deg,
-              rgba(255, 255, 255, ${scrollOpacity * 0.3}) 0%,
-              rgba(255, 255, 255, ${scrollOpacity * 0.1}) 50%,
-              rgba(255, 255, 255, ${scrollOpacity * 0.3}) 100%
+              rgba(255, 255, 255, ${scrollOpacity * 0.3 * fadeInProgress}) 0%,
+              rgba(255, 255, 255, ${scrollOpacity * 0.1 * fadeInProgress}) 50%,
+              rgba(255, 255, 255, ${scrollOpacity * 0.3 * fadeInProgress}) 100%
             );
             z-index: -1;
             pointer-events: none;
@@ -164,9 +171,9 @@ export const BackgroundImageProvider = () => {
           html[data-theme='dark'] .home-background::after {
             background: linear-gradient(
               180deg,
-              rgba(0, 0, 0, ${scrollOpacity * 0.4}) 0%,
-              rgba(0, 0, 0, ${scrollOpacity * 0.2}) 50%,
-              rgba(0, 0, 0, ${scrollOpacity * 0.4}) 100%
+              rgba(0, 0, 0, ${scrollOpacity * 0.4 * fadeInProgress}) 0%,
+              rgba(0, 0, 0, ${scrollOpacity * 0.2 * fadeInProgress}) 50%,
+              rgba(0, 0, 0, ${scrollOpacity * 0.4 * fadeInProgress}) 100%
             );
           }
           
