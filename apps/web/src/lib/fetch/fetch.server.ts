@@ -27,7 +27,7 @@ export const $fetch = createFetch({
 
       const cookieHeader = cookie
         .getAll()
-        .map((c) => `${c.name}=${c.value}`)
+        .map((c) => `${c.name}=${encodeURIComponent(c.value)}`)
         .join('; ')
       if (cookieHeader) {
         headers['cookie'] = cookieHeader

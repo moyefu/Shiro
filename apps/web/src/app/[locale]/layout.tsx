@@ -194,13 +194,12 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   const headers = new Headers()
 
-  headers.append(
-    'cookie',
-    (await cookies())
-      .getAll()
-      .map((cookie) => `${cookie.name}=${cookie.value}`)
-      .join('; '),
-  )
+  const cookieHeader = (await cookies())
+    .getAll()
+    .map((cookie) => `${cookie.name}=${encodeURIComponent(cookie.value)}`)
+    .join('; ')
+
+  headers.append('cookie', cookieHeader)
 
   headers.append('user-agent', 'Shiro')
 
