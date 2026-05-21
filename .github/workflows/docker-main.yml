@@ -1,115 +1,118 @@
-name: Docker (Main Branch)
+name: Docker Build and Push
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
   repository_dispatch:
     types: [trigger-workflow]
 
-permissions: write-all
+permissions:
+  contents: read
+  packages: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  PNPM_VERSION: 9.x.x
-  HASH_FILE: path/to/hash/file.txt
   TZ: Asia/Shanghai
 
 jobs:
-  prepare:
-    name: Prepare
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
-    if: ${{ github.event.head_commit.message != 'Update hash file' }}
-    outputs:
-      hash_content: ${{ steps.read_hash.outputs.hash_content }}
+    if: github.event_name == 'pull_request'
+
     steps:
-      - name: Checkout
+      - name: Checkout source code
         uses: actions/checkout@v4
-      - name: Read HASH_FILE content
-        id: read_hash
-        run: |
-          content=$(cat ${{ env.HASH_FILE }}) || true
-          echo "hash_content=$content" >> "$GITHUB_OUTPUT"
 
-  check:
-    name: Check Should Rebuild
-    runs-on: ubuntu-latest
-    needs: prepare
-    outputs:
-      canceled: ${{ steps.use_content.outputs.canceled }}
-    steps:
-      - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          fetch-depth: 0
-          lfs: true
+          version: 10.27.0
 
-      - name: Use content from prev job and compare
-        id: use_content
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '>=20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Vitest tests
+        run: pnpm --filter @shiro/web vitest run --reporter=verbose
         env:
-          FILE_HASH: ${{ needs.prepare.outputs.hash_content }}
-        run: |
-          file_hash=$FILE_HASH
-          current_hash=$(git rev-parse --short HEAD)
-          echo "File Hash: $file_hash"
-          echo "Current Git Hash: $current_hash"
-          if [ "$file_hash" == "$current_hash" ]; then
-            echo "Hashes match. Stopping workflow."
-            echo "canceled=true" >> $GITHUB_OUTPUT
-          else
-            echo "Hashes do not match. Continuing workflow."
-          fi
+          CI: true
+          NODE_ENV: test
+        timeout-minutes: 10
 
-  build:
-    name: Build artifact
+  build-and-push:
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: check
-    if: ${{ needs.check.outputs.canceled != 'true' }}
-    outputs:
-      sha_short: ${{ steps.store.outputs.sha_short }}
-      branch: ${{ steps.store.outputs.branch }}
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
 
-      - name: Set up Image Name
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-buildx-
+
+      - name: Extract metadata
+        id: meta
         run: |
-          IMAGE_ID=ghcr.io/${{ github.repository }}
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
+          GHCR_ID=ghcr.io/${{ github.repository }}
+          GHCR_ID=$(echo $GHCR_ID | tr '[A-Z]' '[a-z]')
+          echo "GHCR_ID=$GHCR_ID" >> $GITHUB_ENV
+          echo "DOCKERHUB_ID=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKERHUB_PROJECT_NAME }}" >> $GITHUB_ENV
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      - name: Login to Registry
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Store artifact commit version
-        shell: bash
-        id: store
-        run: |
-          sha_short=$(git rev-parse --short HEAD)
-          branch_name=$(git rev-parse --abbrev-ref HEAD)
-          echo "sha_short=$sha_short" >> "$GITHUB_OUTPUT"
-          echo "branch=$branch_name" >> "$GITHUB_OUTPUT"
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Docker Image
-        run: |
-          docker build --build-arg TZ=Asia/Shanghai -t ${{ env.IMAGE_ID }}:${{ steps.store.outputs.sha_short }} .
+      - name: Build and push to GitHub Container Registry
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.GHCR_ID }}:latest
+            ${{ env.GHCR_ID }}:${{ env.SHORT_SHA }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
 
-      - name: Push Docker Image to Github
+      - name: Push to Docker Hub
         run: |
-          docker push ${{ env.IMAGE_ID }}:${{ steps.store.outputs.sha_short }}
-
-      - name: Tag Docker Image as latest
-        run: |
-          docker tag ${{ env.IMAGE_ID }}:${{ steps.store.outputs.sha_short }} ${{ env.IMAGE_ID }}:latest
-
-      - name: Push Docker Image as latest
-        run: |
-          docker push ${{ env.IMAGE_ID }}:latest
+          docker buildx imagetools create \
+            --tag ${{ env.DOCKERHUB_ID }}:latest \
+            --tag ${{ env.DOCKERHUB_ID }}:${{ env.SHORT_SHA }} \
+            ${{ env.GHCR_ID }}:${{ env.SHORT_SHA }}

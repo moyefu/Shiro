@@ -4,7 +4,7 @@ RUN npm install -g --arch=x64 --platform=linux sharp
 
 FROM base AS deps
 
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat git
 RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
