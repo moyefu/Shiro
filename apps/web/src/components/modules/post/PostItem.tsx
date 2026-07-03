@@ -1,5 +1,7 @@
+'use client'
 import type { PostListItem } from '@mx-space/api-client'
 import clsx from 'clsx'
+import { useTranslations } from 'next-intl'
 import { memo } from 'react'
 import RemoveMarkdown from 'remove-markdown'
 
@@ -12,6 +14,7 @@ import { PostMetaBar } from './PostMetaBar'
 
 export const PostLooseItem = memo<{ data: PostListItem }>(
   function PostLooseItem({ data }) {
+    const t = useTranslations('common')
     const text = data.text ?? ''
     const displayText =
       text.length > 300 ? `${RemoveMarkdown(text.slice(0, 300))}...` : text
@@ -63,7 +66,7 @@ export const PostLooseItem = memo<{ data: PostListItem }>(
         <div className="mt-2 flex select-none flex-wrap items-center justify-end gap-4 text-base-content/60">
           <PostMetaBar meta={data} />
           <span className="flex shrink-0 select-none items-center space-x-1 text-right text-accent hover:text-accent [&>svg]:hover:ml-2">
-            <span>阅读全文</span>
+            <span>{t('post_read_more')}</span>
             <i className="i-mingcute-arrow-right-line text-lg transition-[margin]" />
           </span>
         </div>
