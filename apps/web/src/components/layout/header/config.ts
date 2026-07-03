@@ -58,6 +58,7 @@ export const headerMenuConfig: IHeaderMenu[] = [
 
   {
     title: '思考',
+    titleKey: 'nav_thinking',
     icon: h(MdiLightbulbOn20),
     path: '/thinking',
   },
@@ -117,6 +118,7 @@ export const headerMenuConfig: IHeaderMenu[] = [
       },
       {
         title: '友链',
+        titleKey: 'nav_friends',
         icon: h(FaSolidUserFriends),
         path: '/friends',
       },

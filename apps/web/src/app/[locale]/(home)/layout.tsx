@@ -15,14 +15,20 @@ import { queryKey } from './query'
 
 export const dynamic = 'force-dynamic'
 
-export default definePrerenderPage()({
-  fetcher() {
+export default definePrerenderPage<{ locale: string }>()({
+  fetcher(params) {
     const queryClient = getQueryClient()
+    const locale = params?.locale
 
     return queryClient
       .fetchQuery({
         queryKey,
-        queryFn: async () => (await apiClient.aggregate.getTop(5)).$serialized,
+        queryFn: async () =>
+          (
+            await apiClient.aggregate.proxy.top.get({
+              params: { size: 5, lang: locale },
+            })
+          ).$serialized,
       })
       .catch(requestErrorHandler)
   },

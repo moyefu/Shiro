@@ -122,16 +122,27 @@ const SearchPanelImpl = () => {
     isFetching,
   } = useQuery({
     queryKey: ['search', debouncedKeyword],
-    queryFn: ({ queryKey }) => {
+    queryFn: async ({ queryKey }) => {
       const [, keyword] = queryKey
       if (!keyword) {
         return
       }
-      return apiClient.search.proxy('algolia').get({
-        params: {
-          keyword,
-        },
-      })
+      const [postRes, noteRes] = await Promise.allSettled([
+        apiClient.search.proxy('post').get({ params: { keyword } }),
+        apiClient.search.proxy('note').get({ params: { keyword } }),
+      ])
+
+      const postList =
+        (postRes.status === 'fulfilled' ? postRes.value?.data : []) || []
+      const noteList =
+        (noteRes.status === 'fulfilled' ? noteRes.value?.data : []) || []
+
+      return {
+        data: [
+          ...postList.map((item: any) => ({ ...item, type: 'post' })),
+          ...noteList.map((item: any) => ({ ...item, type: 'note' })),
+        ],
+      }
     },
     select: useCallback(
       (data: any) => {
