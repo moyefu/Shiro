@@ -1,8 +1,9 @@
 'use client'
 
+import type { LastYearPublication } from '@mx-space/api-client'
 import { useQuery } from '@tanstack/react-query'
 import { m } from 'motion/react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useInView } from 'react-intersection-observer'
 
@@ -12,6 +13,7 @@ import { Spring } from '~/constants/spring'
 import { Link } from '~/i18n/navigation'
 import { apiClient } from '~/lib/request'
 import { routeBuilder, Routes } from '~/lib/route-builder'
+import { useAppConfigSelector } from '~/providers/root/aggregation-data-provider'
 
 type Post = {
   id: string
@@ -96,9 +98,16 @@ function PhDotBold() {
 
 export const HomePageTimeLine = () => {
   const t = useTranslations('home')
+  const locale = useLocale()
+  const homeTitles = useAppConfigSelector((config) => config.home?.titles)
   const { data: yearData } = useQuery({
-    queryKey: ['home-timeline'],
-    queryFn: async () => apiClient.activity.getLastYearPublication(),
+    queryKey: ['home-timeline', locale],
+    queryFn: async (): Promise<LastYearPublication> =>
+      (
+        await apiClient.activity.proxy('last-year').publication.get({
+          params: { lang: locale },
+        })
+      ).$serialized as LastYearPublication,
   })
 
   const { data, month } = useMemo(
@@ -142,7 +151,7 @@ export const HomePageTimeLine = () => {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
       >
-        {t('timeline_title')}
+        {homeTitles?.timelineTitle || t('timeline_title')}
       </m.div>
       <div
         className="scrollbar-none m-auto my-12 w-full overflow-x-auto overflow-y-hidden"

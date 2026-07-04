@@ -1,19 +1,22 @@
 'use client'
 
 import { m } from 'motion/react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { Divider } from '~/components/ui/divider'
 import { RelativeTime } from '~/components/ui/relative-time'
 import { Spring } from '~/constants/spring'
 import { Link } from '~/i18n/navigation'
 import { routeBuilder, Routes } from '~/lib/route-builder'
+import { useAppConfigSelector } from '~/providers/root/aggregation-data-provider'
 
 import { useHomeQueryData } from '../query'
 
 export const ActivityPostList = () => {
+  const locale = useLocale()
   const t = useTranslations('post')
-  const { notes, posts } = useHomeQueryData()
+  const homeTitles = useAppConfigSelector((config) => config.home?.titles)
+  const { notes, posts } = useHomeQueryData(locale)
   return (
     <m.section
       initial={{ opacity: 0.0001, y: 50 }}
@@ -23,7 +26,7 @@ export const ActivityPostList = () => {
       viewport={{ once: true }}
     >
       <h2 className="text-2xl font-medium leading-loose">
-        {t('recent_posts')}
+        {homeTitles?.recentPosts || t('recent_posts')}
       </h2>
       <ul className="shiro-timeline mt-4">
         {posts.map((post) => (
@@ -60,7 +63,7 @@ export const ActivityPostList = () => {
 
       <Divider />
       <h2 className="text-2xl font-medium leading-loose">
-        {t('recent_notes')}
+        {homeTitles?.recentNotes || t('recent_notes')}
       </h2>
       <ul className="shiro-timeline mt-4">
         {notes.map((note) => (

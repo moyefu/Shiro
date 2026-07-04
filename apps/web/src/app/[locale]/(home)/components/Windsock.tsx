@@ -23,9 +23,11 @@ import { Link } from '~/i18n/navigation'
 import { preventDefault } from '~/lib/dom'
 import { apiClient } from '~/lib/request'
 import { toast } from '~/lib/toast'
+import { useAppConfigSelector } from '~/providers/root/aggregation-data-provider'
 
 export const Windsock = () => {
   const t = useTranslations('common')
+  const homeTitles = useAppConfigSelector((config) => config.home?.titles)
 
   const windsock = useMemo(
     () => [
@@ -92,8 +94,12 @@ export const Windsock = () => {
   return (
     <>
       <div className="center mt-28 flex flex-col">
-        <div className="my-5 text-2xl font-medium">{t('windsock_title')}</div>
-        <div className="mb-24 opacity-90">{t('windsock_subtitle')}</div>
+        <div className="my-5 text-2xl font-medium">
+          {homeTitles?.windsockTitle || t('windsock_title')}
+        </div>
+        <div className="mb-24 opacity-90">
+          {homeTitles?.windsockSubtitle || t('windsock_subtitle')}
+        </div>
         <ul className="flex flex-col flex-wrap gap-2 gap-y-8 opacity-80 lg:flex-row">
           {windsock.map((item, index) => (
             <m.li

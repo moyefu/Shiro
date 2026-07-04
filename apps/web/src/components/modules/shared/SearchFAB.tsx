@@ -133,9 +133,11 @@ const SearchPanelImpl = () => {
       ])
 
       const postList =
-        (postRes.status === 'fulfilled' ? postRes.value?.data : []) || []
+        (postRes.status === 'fulfilled' ? (postRes.value as any)?.data : []) ||
+        []
       const noteList =
-        (noteRes.status === 'fulfilled' ? noteRes.value?.data : []) || []
+        (noteRes.status === 'fulfilled' ? (noteRes.value as any)?.data : []) ||
+        []
 
       return {
         data: [

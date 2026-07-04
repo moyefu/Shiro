@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale } from 'next-intl'
 import { useEffect } from 'react'
 import type { Blog, ItemList, WithContext } from 'schema-dts'
 
@@ -9,6 +10,7 @@ import { useAggregationSelector } from '~/providers/root/aggregation-data-provid
 import { useHomeQueryData } from './query'
 
 export default function Home() {
+  const locale = useLocale()
   useEffect(() => {
     registerPushWorker()
   }, [])
@@ -43,7 +45,7 @@ export default function Home() {
     },
     keywords: config?.seo.keywords,
   }
-  const { notes, posts } = useHomeQueryData()
+  const { notes, posts } = useHomeQueryData(locale)
   const listLdJson: WithContext<ItemList> = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',

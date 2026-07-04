@@ -9,6 +9,7 @@ import { useMemo } from 'react'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { softBouncePreset } from '~/constants/spring'
 import { apiClient } from '~/lib/request'
+import { useAppConfigSelector } from '~/providers/root/aggregation-data-provider'
 
 import { ActivityCard, iconClassName } from './ActivityCard'
 import type { ReactActivityType } from './types'
@@ -16,6 +17,7 @@ import type { ReactActivityType } from './types'
 export const ActivityRecent = () => {
   const t = useTranslations('home')
   const locale = useLocale()
+  const homeTitles = useAppConfigSelector((config) => config.home?.titles)
   const { data, isLoading } = useQuery({
     queryKey: ['home-activity-recent', locale],
     queryFn: async () =>
@@ -54,7 +56,7 @@ export const ActivityRecent = () => {
       viewport={{ once: true }}
     >
       <m.h2 className="mb-8 text-2xl font-medium leading-loose lg:ml-8">
-        {t('activity_recent')}
+        {homeTitles?.activityRecent || t('activity_recent')}
       </m.h2>
 
       {isLoading ? (

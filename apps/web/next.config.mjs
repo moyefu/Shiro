@@ -47,7 +47,6 @@ let nextConfig = {
     serverMinification: true,
     webpackBuildWorker: true,
     globalNotFound: true,
-    turbopackImportTypeText: true,
 
     // optimizePackageImports: ['dayjs'],
   },

@@ -1,9 +1,11 @@
 import Script from 'next/script'
+import { getLocale } from 'next-intl/server'
 
 import { fetchAggregationData } from '~/app/[locale]/api'
 
 export const ScriptInjectProvider = async () => {
-  const { theme } = await fetchAggregationData()
+  const locale = await getLocale()
+  const { theme } = await fetchAggregationData(locale)
   const { scripts, css, js, styles } = theme.config.custom || {}
 
   return (

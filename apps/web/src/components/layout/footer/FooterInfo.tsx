@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import type { JSX } from 'react'
 
 import { fetchAggregationData } from '~/app/[locale]/api'
@@ -27,7 +27,8 @@ export const FooterInfo = () => (
 )
 
 const FooterLinkSection = async () => {
-  const { footer } = (await fetchAggregationData()).theme
+  const locale = await getLocale()
+  const { footer } = (await fetchAggregationData(locale)).theme
   const footerConfig: FooterConfig = footer || {
     linkSections: defaultLinkSections,
   }
@@ -132,7 +133,8 @@ const PoweredBy = async ({ className }: { className?: string }) => {
 
 const FooterBottom = async () => {
   const t = await getTranslations('common')
-  const data = await fetchAggregationData()
+  const locale = await getLocale()
+  const data = await fetchAggregationData(locale)
   const { footer } = data.theme
   const footerConfig = footer || {}
   const { otherInfo } = footerConfig

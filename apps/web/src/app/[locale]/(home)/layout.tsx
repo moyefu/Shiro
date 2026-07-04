@@ -1,7 +1,6 @@
 import { dehydrate } from '@tanstack/react-query'
 
 import { QueryHydrate } from '~/components/common/QueryHydrate'
-import { isShallowEqualArray } from '~/lib/lodash'
 import { getQueryClient } from '~/lib/query-client.server'
 import { apiClient } from '~/lib/request'
 import { definePrerenderPage, requestErrorHandler } from '~/lib/request.server'
@@ -18,11 +17,11 @@ export const dynamic = 'force-dynamic'
 export default definePrerenderPage<{ locale: string }>()({
   fetcher(params) {
     const queryClient = getQueryClient()
-    const locale = params?.locale
+    const locale = params?.locale!
 
     return queryClient
       .fetchQuery({
-        queryKey,
+        queryKey: queryKey(locale),
         queryFn: async () =>
           (
             await apiClient.aggregate.proxy.top.get({
@@ -37,7 +36,10 @@ export default definePrerenderPage<{ locale: string }>()({
 
     const dehydrateState = dehydrate(queryClient, {
       shouldDehydrateQuery(query) {
-        return isShallowEqualArray(query.queryKey as any, queryKey)
+        return (
+          (query.queryKey as string[])[0] === 'home' &&
+          (query.queryKey as string[]).length === 2
+        )
       },
     })
 
