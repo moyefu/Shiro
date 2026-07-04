@@ -61,7 +61,7 @@ export const generateMetadata = async ({
   params: Promise<{ locale: string }>
 }): Promise<Metadata> => {
   const { locale } = await params
-  const fetchedData = await fetchAggregationData()
+  const fetchedData = await fetchAggregationData(locale)
 
   const {
     seo,
@@ -162,7 +162,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   const messages = await getMessages()
 
-  const data = await fetchAggregationData().catch(
+  const data = await fetchAggregationData(locale).catch(
     (err) => new PreRenderError(err.message),
   )
 

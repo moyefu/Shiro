@@ -12,11 +12,19 @@ import { apiClient } from '~/lib/request'
 const cacheTime = appStaticConfig.cache.enabled
   ? appStaticConfig.cache.ttl.aggregation
   : 1
-export const fetchAggregationData = async () => {
+
+const themeByLocale: Record<string, string> = {
+  zh: 'shiro',
+  en: 'shiro_en',
+  ja: 'shiro_ja',
+}
+
+export const fetchAggregationData = async (locale?: string) => {
   await attachServerFetch()
   const queryClient = getQueryClient()
+  const theme = locale ? themeByLocale[locale] || 'shiro' : 'shiro'
+
   const fetcher = async () => {
-    // 先获取版本号（不影响主请求）
     let version = ''
     try {
       const versionRes = await $fetch<
@@ -25,15 +33,14 @@ export const fetchAggregationData = async () => {
         }
       >(apiClient.aggregate.proxy.toString(true), {
         params: {
-          theme: 'shiro_version',
+          theme: `${theme}_version`,
           timeStamp: new Date(),
         },
       })
       version = versionRes.theme || ''
-      console.log('shiro_version', version)
+      console.log(`${theme}_version`, version)
     } catch (e) {
-      // 版本接口不存在或出错，忽略
-      console.log('shiro_version:error', e)
+      console.log(`${theme}_version:error`, e)
     }
 
     const data = (await $fetch<
@@ -42,7 +49,7 @@ export const fetchAggregationData = async () => {
       }
     >(apiClient.aggregate.proxy.toString(true), {
       params: {
-        theme: 'shiro',
+        theme,
         ...(version && { now_version: version }),
       },
     }).then(simpleCamelcaseKeys)) as AggregateRoot & {
@@ -58,7 +65,7 @@ export const fetchAggregationData = async () => {
   }
 
   return queryClient.fetchQuery({
-    queryKey: ['aggregate', 'shiro', 'realtime'],
+    queryKey: ['aggregate', theme, 'realtime'],
     queryFn: fetcher,
     staleTime: cacheTime,
     gcTime: cacheTime,

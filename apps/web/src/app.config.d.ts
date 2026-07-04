@@ -23,6 +23,17 @@ declare global {
     poweredBy?: {
       vercel?: boolean
     }
+
+    home?: {
+      titles?: {
+        activityRecent?: string
+        recentPosts?: string
+        recentNotes?: string
+        timelineTitle?: string
+        windsockTitle?: string
+        windsockSubtitle?: string
+      }
+    }
   }
 
   export interface BackgroundConfig {
